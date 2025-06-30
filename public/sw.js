@@ -1,25 +1,13 @@
-self.addEventListener("install", () => {
-  console.log("Service Worker installed");
-  self.skipWaiting();
-});
+self.addEventListener('push', function (event) {
+  const data = event.data ? event.data.text() : "Push message no payload";
 
-self.addEventListener("activate", () => {
-  console.log("Service Worker activated");
-  return self.clients.claim();
-});
-
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request);
-    })
-  );
-});
-
-self.addEventListener("push", (event) => {
-  const data = event.data ? event.data.text() : "Push Message No Payload";
-  self.registration.showNotification("Cerita Baru!", {
+  const options = {
     body: data,
-    icon: "/icons/icon-192x192.png",
-  });
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+  };
+
+  event.waitUntil(
+    self.registration.showNotification('Notifikasi Baru!', options)
+  );
 });

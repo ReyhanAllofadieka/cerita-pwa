@@ -7,8 +7,9 @@ import { LoginPageView } from './page/login-view.js';
 import { LoginPresenter } from './presenter/login-presenter.js';
 import { RegisterPageView } from './page/register-view.js';
 import { RegisterPresenter } from './presenter/register-presenter.js';
+import './scripts/push-notification.js';
 
-// ✅ Render navigasi dinamis (pakai sessionStorage)
+// ✅ Render navigasi dinamis
 function renderNavigation() {
   const nav = document.getElementById('nav');
   const token = sessionStorage.getItem('token');
@@ -16,6 +17,7 @@ function renderNavigation() {
   nav.innerHTML = `
     <a href="#/">Home</a>
     ${token ? '<a href="#/add">Tambah Cerita</a>' : ''}
+    ${token ? '<a href="#/favorites">Favorit Saya</a>' : ''}
     ${token ? '<a href="#" id="logoutLink">Logout</a>' : '<a href="#/login">Login</a>'}
   `;
 
@@ -41,7 +43,7 @@ function router() {
   const content = document.getElementById('app');
   renderNavigation();
 
-  const token = sessionStorage.getItem('token'); // ✅ validasi di awal
+  const token = sessionStorage.getItem('token');
   if (!token && hash !== '/login' && hash !== '/register') {
     window.location.hash = '/login';
     return;
@@ -50,30 +52,38 @@ function router() {
   const renderPage = () => {
     content.innerHTML = '';
     const PageView = routes[hash];
+
     if (PageView) {
       const view = new PageView();
-      view.render();
 
-      if (typeof view.afterRender === 'function') {
-        view.afterRender();
-      }
+      if (typeof view.getHtml === 'function') {
+        // ✅ Untuk FavoriteView (pakai getHtml)
+        view.getHtml().then((html) => {
+          content.innerHTML = html;
+          if (typeof view.afterRender === 'function') view.afterRender();
+        });
+      } else {
+        // ✅ Untuk halaman biasa (pakai render)
+        view.render();
+        if (typeof view.afterRender === 'function') view.afterRender();
 
-      if (hash === '/') {
-        const model = new StoryModel();
-        const presenter = new StoryPresenter(model, view);
-        presenter.loadStories();
-      }
+        if (hash === '/') {
+          const model = new StoryModel();
+          const presenter = new StoryPresenter(model, view);
+          presenter.loadStories();
+        }
 
-      if (hash === '/add') {
-        const presenter = new AddStoryPresenter(view);
-      }
+        if (hash === '/add') {
+          new AddStoryPresenter(view);
+        }
 
-      if (hash === '/login') {
-        const presenter = new LoginPresenter(view);
-      }
+        if (hash === '/login') {
+          new LoginPresenter(view);
+        }
 
-      if (hash === '/register') {
-        const presenter = new RegisterPresenter(view);
+        if (hash === '/register') {
+          new RegisterPresenter(view);
+        }
       }
     } else {
       content.innerHTML = '<h2>404 - Halaman Tidak Ditemukan</h2>';
@@ -81,34 +91,32 @@ function router() {
   };
 
   if (document.startViewTransition) {
-    document.startViewTransition(() => {
-      renderPage();
-    });
+    document.startViewTransition(() => renderPage());
   } else {
     renderPage();
   }
 }
 
+// ✅ Service Worker & Push Notification
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('SW registered:', registration);
 
-      // Dummy VAPID key
-      const vapidKey = "BLSF..._dummy_key"; // pakai public VAPID key dummy
-      const subscription = await registration.pushManager.subscribe({
+      const vapidKey = "BO4VNQOZ3CIkaVTaTZe-vnH9gghzMFqI6oFyY3D9dOuE9wD1kWDw8mTb3LaY8MZ9wDAItE0f6FqFVdKzBS2nAH8"; // ganti dengan VAPID key dummy kamu
+      await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: vapidKey
       });
 
-      console.log("Push subscribed:", subscription);
+      console.log("Push subscribed!");
     } catch (err) {
-      console.error("SW registration failed", err);
+      console.error("SW registration or push failed", err);
     }
   });
 }
 
-
+// ✅ Router listener
 window.addEventListener('hashchange', router);
 window.addEventListener('load', router);
